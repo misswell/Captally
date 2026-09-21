@@ -1,0 +1,2 @@
+CFBundleDisplayName = "Captally";
+NSPhotoLibraryUsageDescription = "Captally uses your screenshots to identify purchases and create transactions. Screenshot recognition is performed on your device by default.";

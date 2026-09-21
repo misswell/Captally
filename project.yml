@@ -1,0 +1,70 @@
+name: Captally
+options:
+  bundleIdPrefix: com.misswell
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    INFOPLIST_FILE: Captally/Resources/Info.plist
+    DEVELOPMENT_TEAM: "U8U443D7ZL"
+
+targets:
+  Captally:
+    type: application
+    platform: iOS
+    sources:
+      - path: Captally
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.misswell.Captally
+        INFOPLIST_FILE: Captally/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0.0"
+    entitlements:
+      path: Captally/Resources/Captally.entitlements
+      properties:
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - "iCloud.com.misswell.Captally"
+        com.apple.developer.icloud-container-environment: Production
+
+  CaptallyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CaptallyTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Captally
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.misswell.Captally.tests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Captally.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Captally"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  Captally:
+    build:
+      targets:
+        Captally: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - CaptallyTests
