@@ -1,57 +1,31 @@
 import SwiftUI
 
 extension Color {
-    static let appPrimary = Color("AppPrimary")
-    static let appSecondary = Color("AppSecondary")
-    static let appBackground = Color("AppBackground")
-    static let appCard = Color("AppCard")
-    static let appText = Color("AppText")
-    static let appTextSecondary = Color("AppTextSecondary")
-    static let appExpense = Color("AppExpense")
-    static let appIncome = Color("AppIncome")
+    /// Sampled from the app icon, so the interface and the springboard agree.
+    static let brand = Color(red: 92 / 255, green: 136 / 255, blue: 141 / 255)
+    static let brandInk = Color(red: 48 / 255, green: 56 / 255, blue: 64 / 255)
 
-    static let expenseColor = Color(red: 0.91, green: 0.30, blue: 0.24)
-    static let incomeColor = Color(red: 0.20, green: 0.78, blue: 0.55)
+    static let expenseColor = Color(red: 216 / 255, green: 95 / 255, blue: 79 / 255)
+    static let incomeColor = Color(red: 40 / 255, green: 150 / 255, blue: 117 / 255)
 
-    static let expenseGradient = LinearGradient(
-        stops: [
-            .init(color: Color(red: 0.91, green: 0.30, blue: 0.24), location: 0),
-            .init(color: Color(red: 0.95, green: 0.45, blue: 0.30), location: 0.6),
-            .init(color: Color(red: 0.97, green: 0.58, blue: 0.35), location: 1)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let incomeGradient = LinearGradient(
-        stops: [
-            .init(color: Color(red: 0.15, green: 0.70, blue: 0.48), location: 0),
-            .init(color: Color(red: 0.20, green: 0.78, blue: 0.55), location: 0.6),
-            .init(color: Color(red: 0.30, green: 0.85, blue: 0.62), location: 1)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let balanceGradient = LinearGradient(
-        stops: [
-            .init(color: Color(red: 0.25, green: 0.55, blue: 0.95), location: 0),
-            .init(color: Color(red: 0.35, green: 0.65, blue: 0.98), location: 1)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let toastBackground = Color(UIColor.darkGray).opacity(0.88)
-
-    static let cardShadow = Color.black.opacity(0.08)
+    /// Category identity colours. Deliberately muted relative to the system palette: a ledger
+    /// screen can show a dozen of these at once, and fully saturated hues compete for attention.
+    static let categoryPalette: [Color] = [
+        .brand,
+        Color(red: 0.42, green: 0.51, blue: 0.69),
+        Color(red: 0.76, green: 0.55, blue: 0.31),
+        Color(red: 0.58, green: 0.40, blue: 0.60),
+        Color(red: 0.33, green: 0.58, blue: 0.52),
+        Color(red: 0.69, green: 0.41, blue: 0.37),
+        Color(red: 0.47, green: 0.55, blue: 0.40),
+        Color(red: 0.36, green: 0.48, blue: 0.58),
+        Color(red: 0.65, green: 0.52, blue: 0.42),
+        Color(red: 0.44, green: 0.44, blue: 0.58),
+        Color(red: 0.30, green: 0.55, blue: 0.60),
+        Color(red: 0.60, green: 0.47, blue: 0.55),
+    ]
 
     static func categoryColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            .orange, .blue, .purple, .pink, .teal,
-            .indigo, .mint, .cyan, .brown, .yellow,
-            .red, .green
-        ]
-        return colors[index % colors.count]
+        categoryPalette[abs(index) % categoryPalette.count]
     }
 }

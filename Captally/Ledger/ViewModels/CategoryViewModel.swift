@@ -64,20 +64,19 @@ class CategoryViewModel: ObservableObject {
         return false
     }
 
-    func deleteCategory(_ category: Category) -> Bool {
+    func deleteCategory(_ category: Category) {
         guard category.canDelete else {
             errorMessage = loc["validation.cannotDeleteDefault"]
-            return false
+            return
         }
 
         if let transactionCount = category.transactions?.count, transactionCount > 0 {
             errorMessage = String(format: loc["validation.categoryHasRecords"], transactionCount)
-            return false
+            return
         }
 
         PersistenceController.shared.delete(category)
         errorMessage = nil
-        return true
     }
 
     func moveCategory(_ categories: [Category], from source: IndexSet, to destination: Int) {
@@ -93,46 +92,10 @@ class CategoryViewModel: ObservableObject {
         }
     }
 
-    func moveUp(_ category: Category, in categories: [Category]) {
-        guard let currentIndex = categories.firstIndex(where: { $0.id == category.id }),
-              currentIndex > 0 else { return }
-
-        let previous = categories[currentIndex - 1]
-        let tempSort = category.sortOrder
-        category.sortOrder = previous.sortOrder
-        previous.sortOrder = tempSort
-
-        if let error = PersistenceController.shared.save() {
-            errorMessage = String(format: loc["validation.saveFailed"], error.localizedDescription)
-        }
-    }
-
-    func moveDown(_ category: Category, in categories: [Category]) {
-        guard let currentIndex = categories.firstIndex(where: { $0.id == category.id }),
-              currentIndex < categories.count - 1 else { return }
-
-        let next = categories[currentIndex + 1]
-        let tempSort = category.sortOrder
-        category.sortOrder = next.sortOrder
-        next.sortOrder = tempSort
-
-        if let error = PersistenceController.shared.save() {
-            errorMessage = String(format: loc["validation.saveFailed"], error.localizedDescription)
-        }
-    }
-
-    func getCategories(for book: Book, type: CategoryType) -> [Category] {
+    func getCategories(for book: Book, type: CategoryType, topLevel: Bool = true) -> [Category] {
         let categories = book.categories?.allObjects as? [Category] ?? []
         return categories
-            .filter { $0.categoryType == type && $0.isTopLevel }
-            .sorted { $0.sortOrder < $1.sortOrder }
-    }
-
-    func getSubCategories(for parent: Category) -> [Category] {
-        guard let book = parent.book else { return [] }
-        let categories = book.categories?.allObjects as? [Category] ?? []
-        return categories
-            .filter { $0.parentId == parent.id }
+            .filter { $0.categoryType == type && $0.isTopLevel == topLevel }
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 }

@@ -1,147 +1,164 @@
 import SwiftUI
 
 struct AmountKeyboard: View {
-    @EnvironmentObject var loc: LocalizationManager
-    @Binding var text: String
-    var themeColor: Color = .accentColor
-    let onConfirm: () -> Void
+    enum Key: Hashable {
+        case digit(String)
+        case decimal
+        case sum
+        case difference
+        case product
+        case backspace
+        case equals
+    }
 
-    private let rows: [[String]] = [
-        ["1", "2", "3", "+"],
-        ["4", "5", "6", "-"],
-        ["7", "8", "9", "×"],
-        [".", "0", "delete.left", "="]
+    private static let grid: [[Key]] = [
+        [.digit("1"), .digit("2"), .digit("3"), .sum],
+        [.digit("4"), .digit("5"), .digit("6"), .difference],
+        [.digit("7"), .digit("8"), .digit("9"), .product],
+        [.decimal, .digit("0"), .backspace, .equals],
     ]
 
+    @EnvironmentObject var loc: LocalizationManager
+    @Binding var text: String
+    var themeColor: Color = .brand
+    var isConfirmEnabled: Bool = true
+    /// Receives the final amount. The expression is folded before the callback fires, so the
+    /// caller never has to race a pending `@State` write.
+    let onConfirm: (String) -> Void
+
     var body: some View {
-        VStack(spacing: 5) {
-            ForEach(rows, id: \.self) { row in
-                HStack(spacing: 5) {
-                    ForEach(row, id: \.self) { key in
-                        Button {
-                            handleKeyPress(key)
-                        } label: {
-                            Group {
-                                if key == "delete.left" {
-                                    Image(systemName: "delete.left")
-                                        .font(.callout.weight(.medium))
-                                } else if isOperator(key) {
-                                    Text(key)
-                                        .font(.title3.weight(.semibold))
-                                } else {
-                                    Text(key)
-                                        .font(.title3)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 36)
-                            .background(keyBackgroundColor(key))
-                            .foregroundStyle(keyForegroundColor(key))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+        VStack(spacing: Metrics.s) {
+            GlassGroup(spacing: Metrics.s) {
+                ForEach(Self.grid, id: \.self) { row in
+                    HStack(spacing: Metrics.s) {
+                        ForEach(row, id: \.self) { key in
+                            keyButton(key)
                         }
                     }
                 }
             }
 
-            Button {
-                saveWithAutoEvaluate()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.body.weight(.semibold))
-                    Text("Save")
-                        .font(.headline)
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 38)
-                .background(themeColor)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            Button(action: confirm) {
+                Label(loc["quickEntry.save"], systemImage: "checkmark.circle.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: Metrics.rowHeight)
             }
+            .primaryAction(tint: themeColor)
+            .disabled(!isConfirmEnabled)
         }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 0)
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.bottom, Metrics.s)
+        .sensoryFeedback(.impact, trigger: text)
     }
 
-    private func isOperator(_ key: String) -> Bool {
-        ["+", "-", "×", "="].contains(key)
+    private func keyButton(_ key: Key) -> some View {
+        Button {
+            press(key)
+        } label: {
+            keyLabel(key)
+                .frame(maxWidth: .infinity, minHeight: Metrics.keyHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(keyColor(key))
+        .glassKey(tint: keyTint(key))
     }
 
-    private func keyBackgroundColor(_ key: String) -> Color {
-        if key == "=" {
-            return themeColor.opacity(0.12)
-        } else if isOperator(key) {
-            return Color(.systemGray4)
-        } else {
-            return Color(.systemGray6)
+    @ViewBuilder
+    private func keyLabel(_ key: Key) -> some View {
+        switch key {
+        case .digit(let value):
+            Text(value).font(.title2.weight(.medium))
+        case .decimal:
+            Text(".").font(.title2.weight(.medium))
+        case .sum, .difference, .product, .equals:
+            Text(symbol(for: key)).font(.title3.weight(.semibold))
+        case .backspace:
+            Image(systemName: "delete.left").font(.callout)
         }
     }
 
-    private func keyForegroundColor(_ key: String) -> Color {
-        if key == "=" {
-            return themeColor
-        } else if isOperator(key) {
-            return .secondary
-        } else {
-            return .primary
+    private func symbol(for key: Key) -> String {
+        switch key {
+        case .sum: return "+"
+        case .difference: return "−"
+        case .product: return "×"
+        case .equals: return "="
+        default: return ""
         }
     }
 
-    private func handleKeyPress(_ key: String) {
-        if key == "delete.left" {
+    private func keyColor(_ key: Key) -> Color {
+        switch key {
+        case .equals: return .brand
+        case .sum, .difference, .product, .backspace: return .secondary
+        default: return .primary
+        }
+    }
+
+    private func keyTint(_ key: Key) -> Color? {
+        switch key {
+        case .equals: return .brand.opacity(0.35)
+        case .sum, .difference, .product: return Color(.tertiarySystemFill)
+        default: return nil
+        }
+    }
+
+    private func press(_ key: Key) {
+        switch key {
+        case .digit(let value):
+            appendDigit(value)
+        case .decimal:
+            if !currentSegment.contains(".") { text += "." }
+        case .sum, .difference, .product:
+            appendOperator(symbol(for: key))
+        case .backspace:
             if !text.isEmpty { text.removeLast() }
-        } else if key == "." {
-            if !text.contains(".") { text += "." }
-        } else if key == "+" || key == "-" || key == "×" {
-            if text.isEmpty { return }
-            let last = text.last
-            if last == "+" || last == "-" || last == "×" {
-                text.removeLast()
-            }
-            text += key
-        } else if key == "=" {
-            evaluateExpression()
-        } else {
-            if text == "0" && key != "." {
-                text = key
-            } else if text.contains(".") {
-                let parts = text.split(separator: ".")
-                if parts.count == 2 && parts[1].count >= 2 { return }
-                text += key
-            } else if text.count >= 12 {
-                return
-            } else {
-                text += key
-            }
+        case .equals:
+            if let folded = Self.evaluate(text) { text = folded }
         }
     }
 
-    private func evaluateExpression() {
-        let expr = text
+    private var currentSegment: Substring {
+        text.split(whereSeparator: { "+−×".contains($0) }).last ?? ""
+    }
+
+    private func appendDigit(_ value: String) {
+        let segment = currentSegment
+        if segment.contains(".") {
+            let fraction = segment.split(separator: ".").last ?? ""
+            if fraction.count >= 2 { return }
+        } else if segment == "0" {
+            // "0" is a placeholder, not a leading digit.
+            text = String(text.dropLast()) + value
+            return
+        }
+        if text.count >= 12 { return }
+        text += value
+    }
+
+    private func appendOperator(_ symbol: String) {
+        guard !text.isEmpty, !text.hasSuffix("+"), !text.hasSuffix("−"), !text.hasSuffix("×") else { return }
+        text += symbol
+    }
+
+    private func confirm() {
+        onConfirm(Self.evaluate(text) ?? text)
+    }
+
+    /// Folds the keypad's additive/multiplicative expression into a cent-accurate amount.
+    /// Returns nil when there is nothing to fold, leaving the caller's text untouched.
+    static func evaluate(_ expression: String) -> String? {
+        let source = expression
             .replacingOccurrences(of: "×", with: "*")
-
-        let nsExpr = NSExpression(format: expr)
-        if let result = nsExpr.expressionValue(with: nil, context: nil) as? NSNumber {
-            let doubleValue = result.doubleValue
-            if doubleValue == floor(doubleValue) && abs(doubleValue) < 1e15 {
-                text = String(format: "%.0f", doubleValue)
-            } else {
-                let rounded = (doubleValue * 100).rounded() / 100
-                text = String(rounded)
-            }
-        }
-    }
-
-    private func saveWithAutoEvaluate() {
-        if containsOperator(text) {
-            evaluateExpression()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                onConfirm()
-            }
-        } else {
-            onConfirm()
-        }
-    }
-
-    private func containsOperator(_ s: String) -> Bool {
-        s.contains("+") || s.contains("-") || s.contains("×")
+            .replacingOccurrences(of: "−", with: "-")
+        guard source.contains("+") || source.contains("-") || source.contains("*"),
+              source.allSatisfy({ $0.isNumber || "+-*/.".contains($0) }),
+              let value = NSExpression(format: source).expressionValue(with: nil, context: nil) as? NSNumber
+        else { return nil }
+        // Money is rounded through Decimal: folding via Double would hand the ledger a binary
+        // approximation of a cent.
+        let decimal = Decimal((value.doubleValue * 100).rounded()) / 100
+        return NSDecimalNumber(decimal: decimal).stringValue
     }
 }

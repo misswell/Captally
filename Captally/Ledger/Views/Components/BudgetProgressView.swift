@@ -6,106 +6,50 @@ struct BudgetProgressView: View {
     let spent: Decimal
     let total: Decimal
 
-    private var progress: Double {
+    private var isOverBudget: Bool { spent > total }
+
+    private var ratio: Double {
         guard total > 0 else { return 0 }
         return min(NSDecimalNumber(decimal: spent / total).doubleValue, 1.0)
     }
 
-    private var isOverBudget: Bool {
-        spent > total
-    }
-
-    private var isNearLimit: Bool {
-        progress >= 0.8 && !isOverBudget
-    }
-
-    private var progressGradient: LinearGradient {
-        if isOverBudget {
-            return LinearGradient(
-                colors: [Color.red, Color.red.opacity(0.7)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        }
-        if progress < 0.5 {
-            return LinearGradient(
-                colors: [Color.green, Color.green.opacity(0.7)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        }
-        if progress < 0.8 {
-            return LinearGradient(
-                colors: [Color.green, Color.yellow],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        }
-        return LinearGradient(
-            colors: [Color.yellow, Color.red],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Metrics.xs) {
             HStack {
-                Text(budget.budgetPeriod == .monthly ? "Monthly Budget" : "Yearly Budget")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                Label(
+                    budget.budgetPeriod == .monthly ? loc["budget.monthly"] : loc["budget.yearly"],
+                    systemImage: isOverBudget ? "exclamationmark.triangle.fill" : "target"
+                )
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isOverBudget ? Color.expenseColor : Color.primary)
 
-                if isNearLimit {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
+                Spacer(minLength: Metrics.s)
 
-                if isOverBudget {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-
-                Spacer()
-
-                Text(spent.currencyString)
-                    .font(.subheadline)
-                    .foregroundStyle(isOverBudget ? .red : .primary)
-
-                Text(" / ")
-
-                Text(total.currencyString)
-                    .font(.subheadline)
+                Text("\(spent.currencyString) / \(total.currencyString)")
+                    .font(.footnote)
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 8)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(progressGradient)
-                        .frame(width: geometry.size.width * progress, height: 8)
-                }
-            }
-            .frame(height: 8)
+            ProgressView(value: ratio)
+                .tint(tintColor)
 
             if isOverBudget {
-                Text("Over budget \((spent - total).currencyString)")
+                Text("\(loc["budget.overBudget"]) \((spent - total).currencyString)")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.expenseColor)
             } else {
-                Text(loc["budget.remaining"] + " \((total - spent).currencyString)")
+                Text("\(loc["budget.remaining"]) \((total - spent).currencyString)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+        .padding(.vertical, Metrics.xs)
+    }
+
+    private var tintColor: Color {
+        if isOverBudget { return .expenseColor }
+        if ratio >= 0.8 { return .orange }
+        return .brand
     }
 }

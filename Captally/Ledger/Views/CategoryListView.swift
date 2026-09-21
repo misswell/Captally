@@ -2,82 +2,75 @@ import SwiftUI
 import CoreData
 
 struct CategoryListView: View {
-    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var bookVM: BookViewModel
     @EnvironmentObject var loc: LocalizationManager
     @StateObject private var categoryVM = CategoryViewModel()
 
     @State private var selectedType: CategoryType = .expense
-    @State private var showAddSheet = false
-    @State private var editingCategory: Category? = nil
-    @State private var newCategoryName = ""
-    @State private var newCategoryIcon = "fork.knife"
-    @FocusState private var isEditNameFocused: Bool
+    @State private var isSorting = false
+    @State private var editor: EditorTarget?
 
-    let iconOptions = [
-        "fork.knife", "cup.and.saucer.fill", "takeoutbag.and.cup.and.straw.fill",
-        "wineglass.fill", "birthday.cake.fill", "mug.fill", "apple.fill", "bag.fill",
-        "car.fill", "bus.fill", "tram.fill", "car.side.fill", "fuelpump.fill",
-        "parkingsign.circle.fill", "bicycle", "airplane.departure",
-        "bag.fill", "shirt.fill", "house.fill", "laptopcomputer.and.iphone",
-        "drop.fill", "handbag.fill", "tv.fill",
-        "house.fill", "building.fill", "bolt.fill", "building.2.fill",
-        "wrench.and.screwdriver.fill", "flame.fill", "wifi",
-        "gamecontroller.fill", "film.fill", "figure.run", "music.note",
-        "person.2.fill", "dice.fill", "ticket.fill",
-        "stethoscope", "pills.fill", "heart.text.square.fill",
-        "mouth.fill", "heart.circle.fill",
-        "book.fill", "graduationcap.fill", "character.book.fill",
-        "doc.text.fill", "pencil",
-        "phone.fill", "shippingbox.fill", "person.crop.circle.fill",
-        "gift.fill", "banknote.fill", "heart.fill",
-        "pawprint.fill",
-        "chart.line.uptrend.xyaxis", "chart.bar.fill", "percent", "coins",
-        "briefcase.fill", "person.wave.2.fill", "pencil.line",
-        "star.fill", "star.circle.fill", "arrow.uturn.backward.circle.fill",
-        "lightbulb.fill", "leaf.fill", "tag.fill", "cart.fill",
-        "creditcard.fill", "wallet.pass.fill", "calendar", "clock.fill"
-    ]
+    /// Which flavour of the editor the sheet should open: a new top-level category, a new
+    /// subcategory, or a rename of an existing one.
+    private struct EditorTarget: Identifiable {
+        let id = UUID()
+        let type: CategoryType
+        var parent: Category? = nil
+        var editing: Category? = nil
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                headerSection
+                Picker(loc["categories.type"], selection: $selectedType) {
+                    Text(loc["categories.expense"]).tag(CategoryType.expense)
+                    Text(loc["categories.income"]).tag(CategoryType.income)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.top, Metrics.s)
+                .padding(.bottom, Metrics.xs)
 
                 if let book = bookVM.currentBook {
-                    let categories = categoryVM.getCategories(for: book, type: selectedType)
-
-                    if categories.isEmpty {
-                        emptyState
-                    } else {
-                        List {
-                            ForEach(categories, id: \.id) { category in
-                                categoryRow(category: category, categories: categories)
-                            }
-                            .onMove { source, destination in
-                                categoryVM.moveCategory(categories, from: source, to: destination)
-                            }
-                        }
-                        .listStyle(.plain)
+                    categoryList(in: book)
+                } else {
+                    ContentUnavailableView {
+                        Label(loc["bills.noLedger"], systemImage: "tray")
+                    } description: {
+                        Text(loc["bills.noLedgerDesc"])
                     }
                 }
             }
             .navigationTitle(loc["categories.title"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
-                        editingCategory = nil
-                        newCategoryName = ""
-                        newCategoryIcon = "fork.knife"
-                        showAddSheet = true
+                        isSorting.toggle()
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease")
+                    }
+                    .accessibilityLabel(isSorting ? loc["categories.done"] : loc["categories.sortCategories"])
+                    .disabled(bookVM.currentBook == nil)
+
+                    Button {
+                        editor = EditorTarget(type: selectedType)
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel(loc["categories.addCategory"])
+                    .disabled(isSorting || bookVM.currentBook == nil)
                 }
             }
-            .sheet(isPresented: $showAddSheet) {
-                categoryEditSheet()
+            .sheet(item: $editor) { target in
+                if let book = bookVM.currentBook {
+                    CategoryEditorView(
+                        book: book,
+                        categoryType: target.type,
+                        parentCategory: target.parent,
+                        editing: target.editing
+                    )
+                }
             }
             .alert(loc["categories.error"], isPresented: .constant(categoryVM.errorMessage != nil)) {
                 Button(loc["categories.ok"]) { categoryVM.errorMessage = nil }
@@ -87,253 +80,109 @@ struct CategoryListView: View {
         }
     }
 
-    private var headerSection: some View {
-        VStack(spacing: 0) {
-            Picker(loc["categories.type"], selection: $selectedType) {
-                Text(loc["categories.expense"]).tag(CategoryType.expense)
-                Text(loc["categories.income"]).tag(CategoryType.income)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 12)
-
-            if let book = bookVM.currentBook {
-                let categories = categoryVM.getCategories(for: book, type: selectedType)
-                let topLevel = categories.filter { $0.isTopLevel }
-                let subLevel = categories.filter { !$0.isTopLevel }
-
-                HStack(spacing: 0) {
-                    statItem(
-                        value: "\(topLevel.count)",
-                        label: loc["categories.topLevel"],
-                        icon: "square.grid.2x2",
-                        color: .accentColor
-                    )
-
-                    Rectangle()
-                        .fill(Color(.systemGray4))
-                        .frame(width: 1, height: 32)
-
-                    statItem(
-                        value: "\(subLevel.count)",
-                        label: loc["categories.subLevel"],
-                        icon: "list.bullet",
-                        color: .orange
-                    )
-
-                    Rectangle()
-                        .fill(Color(.systemGray4))
-                        .frame(width: 1, height: 32)
-
-                    statItem(
-                        value: "\(categories.count)",
-                        label: loc["categories.total"],
-                        icon: "tray.full",
-                        color: .green
-                    )
-                }
-                .padding(.vertical, 10)
-                .background(Color(.secondarySystemBackground))
-            }
-        }
-    }
-
-    private func statItem(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption2)
-                    .foregroundStyle(color)
-                Text(value)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.primary)
-            }
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            Text(loc["categories.empty"])
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text(loc["categories.emptyHint"])
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-            Spacer()
-        }
-    }
+    // MARK: - List
 
     @ViewBuilder
-    private func categoryRow(category: Category, categories: [Category]) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: category.icon)
-                .font(.callout)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(.white)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.categoryColor(for: Int(category.sortOrder)))
-                )
+    private func categoryList(in book: Book) -> some View {
+        let topLevel = categoryVM.getCategories(for: book, type: selectedType)
+        let subLevel = categoryVM.getCategories(for: book, type: selectedType, topLevel: false)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(category.name)
-                    .font(.body)
-
-                if category.isSystem {
-                    Text(loc["categories.default"])
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        if topLevel.isEmpty && subLevel.isEmpty {
+            ContentUnavailableView {
+                Label(loc["categories.empty"], systemImage: "folder.badge.plus")
+            } description: {
+                Text(loc["categories.emptyHint"])
+            } actions: {
+                Button(loc["categories.addCategory"]) {
+                    editor = EditorTarget(type: selectedType)
                 }
-            }
-
-            Spacer()
-
-            VStack(spacing: 2) {
-                let idx = categories.firstIndex(where: { $0.id == category.id }) ?? 0
-
-                Button {
-                    categoryVM.moveUp(category, in: categories)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 28, height: 22)
-                        .foregroundStyle(idx > 0 ? Color.accentColor : Color(.systemGray4))
-                        .contentShape(Rectangle())
-                }
-                .disabled(idx == 0)
-
-                Button {
-                    categoryVM.moveDown(category, in: categories)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 28, height: 22)
-                        .foregroundStyle(idx < categories.count - 1 ? Color.accentColor : Color(.systemGray4))
-                        .contentShape(Rectangle())
-                }
-                .disabled(idx == categories.count - 1)
-            }
-
-            if category.canDelete {
-                Menu {
-                    Button {
-                        editingCategory = category
-                        newCategoryName = category.name
-                        newCategoryIcon = category.icon
-                        showAddSheet = true
-                    } label: {
-                        Label(loc["categories.edit"], systemImage: "pencil")
-                    }
-
-                    Divider()
-
-                    Button(role: .destructive) {
-                        _ = categoryVM.deleteCategory(category)
-                    } label: {
-                        Label(loc["categories.delete"], systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    @ViewBuilder
-    private func categoryEditSheet() -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button(loc["categories.cancel"]) { showAddSheet = false }
-                Spacer()
-                Text(editingCategory == nil ? loc["categories.addCategory"] : loc["categories.editCategory"])
-                    .font(.headline)
-                Spacer()
-                Button(editingCategory == nil ? loc["categories.add"] : loc["categories.save"]) {
-                    saveCategory()
-                }
-                .disabled(newCategoryName.isEmpty)
-                .fontWeight(.semibold)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            TextField(loc["categories.categoryName"], text: $newCategoryName)
-                .textFieldStyle(.roundedBorder)
-                .focused($isEditNameFocused)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
-            Text(loc["categories.chooseIcon"])
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 5)
-
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(iconOptions, id: \.self) { icon in
-                        Image(systemName: icon)
-                            .font(.callout)
-                            .frame(width: 44, height: 44)
-                            .foregroundStyle(icon == newCategoryIcon ? .white : .primary)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(icon == newCategoryIcon ? Color.accentColor : Color(.systemGray5))
-                            )
-                            .scaleEffect(icon == newCategoryIcon ? 1.1 : 1.0)
-                            .animation(.easeInOut(duration: 0.15), value: newCategoryIcon)
-                            .onTapGesture {
-                                newCategoryIcon = icon
-                            }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                isEditNameFocused = true
-            }
-        }
-    }
-
-    private func saveCategory() {
-        guard let book = bookVM.currentBook else { return }
-
-        if let category = editingCategory {
-            if categoryVM.updateCategory(category, name: newCategoryName, icon: newCategoryIcon) {
-                showAddSheet = false
+                .primaryAction(tint: .brand)
             }
         } else {
-            if categoryVM.addCategory(
-                name: newCategoryName,
-                icon: newCategoryIcon,
-                type: selectedType,
-                to: book
-            ) {
-                showAddSheet = false
+            List {
+                if !topLevel.isEmpty {
+                    Section {
+                        ForEach(topLevel, id: \.id) { category in
+                            categoryRow(category, parent: nil)
+                                .swipeActions(edge: .leading) {
+                                    Button(loc["categories.addSubcategory"]) {
+                                        editor = EditorTarget(type: selectedType, parent: category)
+                                    }
+                                    .tint(.brand)
+                                }
+                        }
+                        .onMove { source, destination in
+                            categoryVM.moveCategory(topLevel, from: source, to: destination)
+                        }
+                        .onDelete { offsets in
+                            offsets.map { topLevel[$0] }.forEach { categoryVM.deleteCategory($0) }
+                        }
+                    } header: {
+                        sectionHeader(loc["categories.topLevel"], count: topLevel.count)
+                    }
+                }
+
+                if !subLevel.isEmpty {
+                    Section {
+                        ForEach(subLevel, id: \.id) { category in
+                            categoryRow(category, parent: topLevel.first { $0.id == category.parentId })
+                        }
+                        .onMove { source, destination in
+                            categoryVM.moveCategory(subLevel, from: source, to: destination)
+                        }
+                        .onDelete { offsets in
+                            offsets.map { subLevel[$0] }.forEach { categoryVM.deleteCategory($0) }
+                        }
+                    } header: {
+                        sectionHeader(loc["categories.subLevel"], count: subLevel.count)
+                    }
+                }
             }
+            .listStyle(.insetGrouped)
+            .environment(\.editMode, .constant(isSorting ? .active : .inactive))
+            .animation(.snappy, value: isSorting)
         }
+    }
+
+    private func sectionHeader(_ title: String, count: Int) -> some View {
+        Text("\(title) · \(count)")
+    }
+
+    private func categoryRow(_ category: Category, parent: Category?) -> some View {
+        let tint = Color.categoryColor(for: Int(category.sortOrder))
+
+        return Button {
+            editor = EditorTarget(type: category.categoryType, parent: parent, editing: category)
+        } label: {
+            HStack(spacing: Metrics.s) {
+                Image(systemName: category.icon)
+                    .font(.body)
+                    .frame(width: 34, height: 34)
+                    .foregroundStyle(tint)
+                    .background(
+                        tint.opacity(0.16),
+                        in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(category.name)
+                    if let parent {
+                        Text(parent.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if category.isSystem {
+                        Text(loc["categories.default"])
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: Metrics.xs)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isSorting)
+        .deleteDisabled(!category.canDelete)
     }
 }

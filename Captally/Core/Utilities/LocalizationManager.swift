@@ -48,6 +48,7 @@ final class LocalizationManager: ObservableObject {
         "quickEntry.notePlaceholder": "Add a note...",
         "quickEntry.done": "Done",
         "quickEntry.save": "Save",
+        "quickEntry.createLedger": "Create a ledger",
 
         // MARK: - Bill List
         "bills.title": "Bills",
@@ -107,7 +108,6 @@ final class LocalizationManager: ObservableObject {
         "settings.data": "Data",
         "settings.categories": "Categories",
         "settings.exportData": "Export Data",
-        "settings.dataManagement": "Data Management",
         "settings.about": "About",
         "settings.version": "Version",
         "settings.privacyPolicy": "Privacy Policy",
@@ -130,7 +130,6 @@ final class LocalizationManager: ObservableObject {
         "categories.income": "Income",
         "categories.topLevel": "Top-level",
         "categories.subLevel": "Sub-level",
-        "categories.total": "Total",
         "categories.empty": "No categories",
         "categories.emptyHint": "Tap + to add a category",
         "categories.default": "Default",
@@ -345,6 +344,7 @@ final class LocalizationManager: ObservableObject {
         "quickEntry.notePlaceholder": "添加备注...",
         "quickEntry.done": "完成",
         "quickEntry.save": "保存",
+        "quickEntry.createLedger": "创建账本",
 
         // MARK: - Bill List
         "bills.title": "账单",
@@ -404,7 +404,6 @@ final class LocalizationManager: ObservableObject {
         "settings.data": "数据",
         "settings.categories": "分类管理",
         "settings.exportData": "导出数据",
-        "settings.dataManagement": "数据管理",
         "settings.about": "关于",
         "settings.version": "版本",
         "settings.privacyPolicy": "隐私政策",
@@ -427,7 +426,6 @@ final class LocalizationManager: ObservableObject {
         "categories.income": "收入",
         "categories.topLevel": "一级分类",
         "categories.subLevel": "二级分类",
-        "categories.total": "总计",
         "categories.empty": "暂无分类",
         "categories.emptyHint": "点击右上角 + 添加分类",
         "categories.default": "默认分类",

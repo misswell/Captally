@@ -107,59 +107,29 @@ struct BookRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 4)
-                .opacity(isSelected ? 1 : 0)
-                .padding(.trailing, 10)
-
+        HStack(spacing: Metrics.m) {
             Image(systemName: book.icon)
-                .font(.title3)
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                .frame(width: 32)
+                .font(.body.weight(.medium))
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .frame(width: 36, height: 36)
+                .background(
+                    isSelected ? Color.brand : Color(.secondarySystemFill),
+                    in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous)
+                )
 
             Text(book.name)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .semibold : .regular)
+                .font(.body)
+                .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: Metrics.s)
 
             if isSelected {
-                Image(systemName: "checkmark")
-                    .font(.caption)
-                    .foregroundStyle(Color.accentColor)
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.brand)
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 8)
-        .background(
-            Group {
-                if isSelected {
-                    LinearGradient(
-                        colors: [Color.accentColor.opacity(0.12), Color.accentColor.opacity(0.04)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                } else {
-                    Color.clear
-                }
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .shadow(
-            color: isSelected ? Color.accentColor.opacity(0.15) : Color.black.opacity(0.06),
-            radius: isSelected ? 4 : 3,
-            x: 0,
-            y: isSelected ? 2 : 1
-        )
-        .animation(.easeInOut(duration: 0.25), value: isSelected)
+        .padding(.vertical, Metrics.xs)
+        .animation(.snappy, value: isSelected)
     }
 }
 
@@ -168,8 +138,11 @@ struct CreateBookView: View {
     @EnvironmentObject var loc: LocalizationManager
     @Environment(\.dismiss) private var dismiss
 
-    let icons = ["book.fill", "house.fill", "airplane.departure", "cart.fill", "briefcase.fill", "heart.fill", "star.fill", "flag.fill", "wallet.pass.fill", "creditcard.fill", "pawprint.fill", "bag.fill"]
-    @State private var iconScale: [String: CGFloat] = [:]
+    private static let icons = [
+        "book.fill", "house.fill", "airplane.departure", "cart.fill",
+        "briefcase.fill", "heart.fill", "star.fill", "flag.fill",
+        "wallet.pass.fill", "creditcard.fill", "pawprint.fill", "bag.fill",
+    ]
 
     var body: some View {
         NavigationStack {
@@ -179,44 +152,37 @@ struct CreateBookView: View {
                 }
 
                 Section(loc["ledgers.icon"]) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                        ForEach(icons, id: \.self) { icon in
-                            Image(systemName: icon)
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    bookVM.newBookIcon == icon
-                                        ? Color.accentColor.opacity(0.15)
-                                        : Color(.systemGray6)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .scaleEffect(bookVM.newBookIcon == icon ? (iconScale[icon] ?? 1.0) : 1.0)
-                                .onTapGesture {
-                                    iconScale[icon] = 1.25
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) {
-                                        bookVM.newBookIcon = icon
-                                        iconScale[icon] = 1.0
-                                    }
-                                }
+                    LazyVGrid(columns: Array(repeating: GridItem(), count: 6), spacing: Metrics.s) {
+                        ForEach(Self.icons, id: \.self) { icon in
+                            Button {
+                                bookVM.newBookIcon = icon
+                            } label: {
+                                Image(systemName: icon)
+                                    .font(.title3)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .foregroundStyle(bookVM.newBookIcon == icon ? Color.white : Color.primary)
+                                    .background(
+                                        bookVM.newBookIcon == icon ? Color.brand : Color(.secondarySystemFill),
+                                        in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous)
+                                    )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .sensoryFeedback(.selection, trigger: bookVM.newBookIcon)
                 }
             }
             .navigationTitle(loc["ledgers.newLedger"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button(loc["ledgers.cancel"]) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(loc["ledgers.create"]) {
-                        if !bookVM.newBookName.isEmpty {
-                            bookVM.createBook()
-                            dismiss()
-                        }
+                        bookVM.createBook()
+                        dismiss()
                     }
-                    .fontWeight(.semibold)
                     .disabled(bookVM.newBookName.isEmpty)
                 }
             }
