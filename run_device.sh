@@ -70,26 +70,41 @@ mkdir -p "$DERIVED_DATA"
 xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null 2>&1 || true
 
 # xctrace lists the Mac itself under "== Devices ==" and parks a sleeping iPhone under
-# "Devices Offline", so neither tells us what we can actually install to. devicectl exposes the
-# tunnel state, and only a live tunnel carries an install.
+# "Devices Offline", so neither tells us what we can install to. CoreDevice's tunnel state is
+# also misleading: it reads "disconnected" for a phone that installs and launches fine, because
+# the tunnel is brought up on demand. Paired plus physical plus iOS is the real precondition.
 DEVICE_UDID=$(python3 - "$DEVICES_JSON" <<'PY'
 import json, sys
 try:
     devices = json.load(open(sys.argv[1]))["result"]["devices"]
 except Exception:
     sys.exit(0)
-seen = []
+
+def field(dev, group, name):
+    props = dev.get("properties") or {}
+    if group in props and name in props[group]:
+        return props[group][name]
+    return (dev.get(f"{group}Properties") or {}).get(name)
+
+paired = []
 for dev in devices:
-    hard = dev.get("hardwareProperties") or {}
-    conn = dev.get("connectionProperties") or {}
-    if hard.get("platform") != "iOS" or conn.get("transportType") == "sameMachine":
-        continue  # simulators run on this machine
-    seen.append((hard.get("udid"), conn.get("tunnelState")))
-    if conn.get("tunnelState") == "connected":
-        print(hard.get("udid"))
-        sys.exit(0)
-for udid, state in seen:
-    print(f"paired but tunnelState={state}: {udid}", file=sys.stderr)
+    if field(dev, "hardware", "reality") != "physical":
+        continue  # simulators
+    if field(dev, "hardware", "platform") != "iOS":
+        continue
+    if field(dev, "connection", "pairingState") != "paired":
+        continue
+    paired.append((field(dev, "hardware", "udid") or dev.get("identifier"),
+                   field(dev, "hardware", "marketingName"),
+                   field(dev, "connection", "lastConnectionDate") or 0))
+
+if paired:
+    # Most recently seen device wins. The UDID, not devicectl's own identifier, is what
+    # xcodebuild's -destination accepts.
+    paired.sort(key=lambda item: item[2], reverse=True)
+    if len(paired) > 1:
+        print(f"{len(paired)} paired iPhones found, using {paired[0][1]} {paired[0][0]}", file=sys.stderr)
+    print(paired[0][0])
 PY
 )
 
@@ -241,12 +256,14 @@ if [ "$TARGET_TYPE" = "device" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  ✅ Captally has been installed on your iPhone!"
     echo ""
-    echo "  First-time setup: Trust the developer certificate"
-    echo "  iPhone → Settings → General → VPN & Device Management"
-    echo "  → Tap your developer profile → Trust"
+    echo "  Stays installable until the certificate or profile expires; this is a paid team,"
+    echo "  so that is a year, not the 7 days a free Apple ID gets."
     echo ""
-    echo "  Note: Free Apple ID signed apps expire after 7 days."
-    echo "  Re-run this script to reinstall."
+    echo "  If a launch is refused with 'not been explicitly trusted':"
+    echo "  iPhone → Settings → Privacy & Security → Developer Mode, then Trust the certificate."
+    echo ""
+    echo "  Cold-start output: add --console to the launch, e.g."
+    echo "  xcrun devicectl device process launch --console -t 60 --device $DEVICE_UDID $BUNDLE_ID"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 else
     info "Installing on Simulator..."
