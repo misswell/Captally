@@ -6,7 +6,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="type" attributeType="String" defaultValueString="cash"/>
-        <relationship name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="accounts" inverseEntity="Book"/>
+        <relationship optional="YES" name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="accounts" inverseEntity="Book"/>
     </entity>
     <entity name="Book" representedClassName="Book" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -14,10 +14,10 @@
         <attribute name="icon" attributeType="String" defaultValueString="book"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
-        <relationship name="accounts" toMany="YES" deletionRule="Cascade" destinationEntity="Account" inverseName="book" inverseEntity="Account"/>
-        <relationship name="budgets" toMany="YES" deletionRule="Cascade" destinationEntity="Budget" inverseName="book" inverseEntity="Budget"/>
-        <relationship name="categories" toMany="YES" deletionRule="Cascade" destinationEntity="Category" inverseName="book" inverseEntity="Category"/>
-        <relationship name="transactions" toMany="YES" deletionRule="Cascade" destinationEntity="Transaction" inverseName="book" inverseEntity="Transaction"/>
+        <relationship optional="YES" name="accounts" toMany="YES" deletionRule="Cascade" destinationEntity="Account" inverseName="book" inverseEntity="Account"/>
+        <relationship optional="YES" name="budgets" toMany="YES" deletionRule="Cascade" destinationEntity="Budget" inverseName="book" inverseEntity="Budget"/>
+        <relationship optional="YES" name="categories" toMany="YES" deletionRule="Cascade" destinationEntity="Category" inverseName="book" inverseEntity="Category"/>
+        <relationship optional="YES" name="transactions" toMany="YES" deletionRule="Cascade" destinationEntity="Transaction" inverseName="book" inverseEntity="Transaction"/>
     </entity>
     <entity name="Budget" representedClassName="Budget" syncable="YES">
         <attribute name="amount" attributeType="Decimal" defaultValueString="0.0" usesScalarValueType="NO"/>
@@ -25,7 +25,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="period" attributeType="String" defaultValueString="monthly"/>
         <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="budgets" inverseEntity="Book"/>
+        <relationship optional="YES" name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="budgets" inverseEntity="Book"/>
     </entity>
     <entity name="Category" representedClassName="Category" syncable="YES">
         <attribute name="icon" attributeType="String" defaultValueString="folder"/>
@@ -35,8 +35,8 @@
         <attribute name="parentId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="sortOrder" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="type" attributeType="String" defaultValueString="expense"/>
-        <relationship name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="categories" inverseEntity="Book"/>
-        <relationship name="transactions" toMany="YES" deletionRule="Nullify" destinationEntity="Transaction" inverseName="category" inverseEntity="Transaction"/>
+        <relationship optional="YES" name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="categories" inverseEntity="Book"/>
+        <relationship optional="YES" name="transactions" toMany="YES" deletionRule="Nullify" destinationEntity="Transaction" inverseName="category" inverseEntity="Transaction"/>
     </entity>
     <entity name="Transaction" representedClassName="Transaction" syncable="YES">
         <attribute name="aiProvider" optional="YES" attributeType="String"/>
@@ -67,7 +67,7 @@
         <attribute name="transactionNumber" optional="YES" attributeType="String"/>
         <attribute name="type" attributeType="String" defaultValueString="expense"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="transactions" inverseEntity="Book"/>
+        <relationship optional="YES" name="book" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="transactions" inverseEntity="Book"/>
         <relationship name="category" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Category" inverseName="transactions" inverseEntity="Category"/>
     </entity>
     <entity name="ScanBatch" representedClassName="ScanBatch" syncable="NO">

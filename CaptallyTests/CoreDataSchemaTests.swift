@@ -110,6 +110,32 @@ final class CoreDataSchemaTests: XCTestCase {
         }
     }
 
+    func testCurrentModelRelationshipsSatisfyCloudKit() throws {
+        // A required relationship makes `NSPersistentCloudKitContainer` refuse to open the store at
+        // all ("CloudKit integration requires that all relationships be optional"), and the failure
+        // is invisible on the simulator, which runs local-only. Only the version that provisions the
+        // store is checked: V1/V2 are migration sources no device ever opened against CloudKit.
+        let model = try Self.model(named: "CaptallyV3")
+        var checked = 0
+        for entity in model.entities where Self.ledgerEntities.contains(entity.name ?? "") {
+            for relationship in entity.properties.compactMap({ $0 as? NSRelationshipDescription }) {
+                checked += 1
+                XCTAssertTrue(
+                    relationship.isOptional,
+                    "CloudKit cannot sync \(entity.name ?? "?").\(relationship.name): relationships must be optional"
+                )
+                if relationship.isToMany {
+                    XCTAssertNotNil(
+                        relationship.inverseRelationship,
+                        "CloudKit requires a to-many inverse on \(entity.name ?? "?").\(relationship.name)"
+                    )
+                }
+            }
+        }
+        // Guards the loop above: an empty ledger-entity filter would pass every assertion.
+        XCTAssertGreaterThan(checked, 8, "no relationships were examined")
+    }
+
     func testV2StoreUpgradesToV3AndKeepsItsRows() throws {
         let storeURL = storeDirectory.appendingPathComponent("capture-columns.sqlite")
         let transactionID = UUID()

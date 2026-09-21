@@ -39,7 +39,9 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - "iCloud.com.misswell.Captally"
-        com.apple.developer.icloud-container-environment: Production
+        # No icloud-container-environment: omitted, CloudKit picks Development for development
+        # builds and Production for distributed ones. Pinning Production here broke the store on a
+        # real device, because a fresh container has no Production schema until it is deployed.
 
   CaptallyTests:
     type: bundle.unit-test

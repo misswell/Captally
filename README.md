@@ -54,6 +54,23 @@ xcodebuild -scheme Captally -destination 'platform=iOS Simulator,name=iPhone 17 
 
 工程文件由 `project.yml` 生成，不要手工编辑 `Captally.xcodeproj`。
 
+### 真机运行
+
+`./run_device.sh --device` 负责构建、安装、拉起。前提是 Xcode → Settings → Accounts 里已登录
+拥有该 Team 的 Apple 账户：CloudKit entitlements 不能由通配 profile 签名，首次构建必须由 Xcode
+向开发者门户注册 App ID `com.misswell.Captally` 与容器 `iCloud.com.misswell.Captally`（容器 ID
+一经注册即永久占用）。Team 只配置在 `project.yml` 的 `DEVELOPMENT_TEAM` 一处。
+
+两条真机上才会暴露的约束：
+
+- entitlements 不写 `com.apple.developer.icloud-container-environment`。省略时 CloudKit 按签名类型
+  选环境（开发包 Development、分发包 Production）；写死 Production 会让开发包在新容器上打不开 store。
+- CloudKit 要求**所有 relationship 都是 optional**，否则真机报 `NSCocoaErrorDomain 134060`，一个 store
+  都加载不出来，随后第一次 save 直接崩溃。Simulator 走 local-only（`cloudKitContainerOptions = nil`），
+  这条约束在模拟器上完全看不出来，因此由 `CoreDataSchemaTests` 把守。
+
+首次启动会把相册里既有截图全部登记为已处理（一台真实设备的量级是数千张），此后只处理新增。
+
 ### 演示数据
 
 正式运行不会写入任何演示数据。仅 Debug 构建、且显式设置环境变量时才允许：
